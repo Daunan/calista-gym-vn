@@ -1,13 +1,14 @@
 /* Service Worker — cache-first offline. HLV Gym CALISTA */
 'use strict';
 
-var CACHE = 'gymvn-v1';
+var CACHE = 'gymvn-v4';
 var ASSETS = [
   './',
   './index.html',
   './styles.css',
   './manifest.json',
   './js/data.js',
+  './js/rules.js',
   './js/ui.js',
   './js/anatomy.js',
   './js/motion.js',
@@ -41,6 +42,8 @@ self.addEventListener('install', function (event) {
 });
 
 self.addEventListener('activate', function (event) {
+  // CHÚ Ý: chỉ xóa CACHE cũ. TUYỆT ĐỐI không đụng vào localStorage
+  // (toàn bộ lịch sử tập luyện của người dùng nằm ở đó).
   event.waitUntil(
     caches.keys().then(function (keys) {
       return Promise.all(

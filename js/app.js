@@ -75,7 +75,24 @@
         safe(function () { S.day(parseInt(arg, 10) || 1); });
         break;
       case 'session':
-        safe(function () { S.session(parseInt(arg, 10) || 1); });
+        safe(function () {
+          // '#session/0' = chế độ ngày đèn đỏ (ROUTINE.periodDay).
+          // parseInt('0') === 0 nên phải kiểm tra riêng, không dùng `|| 1`.
+          var dow = parseInt(arg, 10);
+          if (isNaN(dow) || dow < 0 || dow > 7) dow = 1;
+          S.session(dow);
+        });
+        break;
+      case 'report':
+        safe(function () {
+          // '#report' = tháng này · '#report/2026/8' = tháng chỉ định
+          var now = new Date();
+          var y = parseInt(parts[1], 10);
+          var m = parseInt(parts[2], 10);
+          if (isNaN(y) || y < 2000 || y > 2999) y = now.getFullYear();
+          if (isNaN(m) || m < 1 || m > 12) m = now.getMonth() + 1;
+          S.monthlyReport(y, m);
+        });
         break;
       case 'attendance':
         safe(function () { S.attendance(); });

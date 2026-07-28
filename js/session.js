@@ -62,7 +62,17 @@
       '  0%{transform:scale(0.5);opacity:0;}',
       '  60%{transform:scale(1.12);opacity:1;}',
       '  100%{transform:scale(1);opacity:1;}}',
-      '.sess-level-pop{animation:sessLevelPop 0.7s ease-out both;}'
+      '.sess-level-pop{animation:sessLevelPop 0.7s ease-out both;}',
+      '.sess-period-banner{background:rgba(255,158,210,0.12);border:1.5px solid #FF9ED2;border-radius:14px;',
+      '  padding:12px 14px;font-size:17px;font-weight:800;color:#FF9ED2;line-height:1.4;',
+      '  text-align:center;margin-bottom:12px;}',
+      '.sess-closed-banner{background:rgba(78,208,154,0.12);border:1.5px solid var(--ok);border-radius:14px;',
+      '  padding:12px 14px;font-size:16px;font-weight:700;color:var(--ok);line-height:1.45;margin-bottom:12px;}',
+      '.sess-kcal-big{font-size:44px;font-weight:800;color:#FF9F45;line-height:1.1;',
+      '  font-variant-numeric:tabular-nums;}',
+      '.sess-kcal-sub{font-size:16px;color:var(--text);font-weight:700;margin-top:4px;}',
+      '.sess-kcal-note{font-size:13px;color:var(--text-dim);margin-top:8px;line-height:1.4;}',
+      '.sess-kcal-line{font-size:18px;font-weight:800;color:#FF9F45;margin-top:8px;}'
     ].join('\n');
     document.head.appendChild(st);
   }
@@ -87,8 +97,30 @@
     injectCss();
     var el = window.UI.el;
     var UI = window.UI;
-    var day = window.ROUTINE.forDow(dow);
+    // dow === 0 → chế độ ngày đèn đỏ (ROUTINE.periodDay)
+    var isPeriodMode = (dow === 0);
+    var day = isPeriodMode
+      ? (window.ROUTINE.periodDay || window.ROUTINE.forDow(0))
+      : window.ROUTINE.forDow(dow);
     var app = document.getElementById('app') || document.body;
+
+    /* ---------- helper: cân nặng / chu kỳ (an toàn nếu Game chưa có hàm) ---------- */
+    function getWeightKg() {
+      var w = 0;
+      try {
+        if (window.Game && typeof window.Game.getWeight === 'function') w = window.Game.getWeight();
+      } catch (e) {}
+      if (typeof w !== 'number' || !isFinite(w) || w <= 0) {
+        w = (window.RULES && window.RULES.DEFAULT_WEIGHT_KG) || 55;
+      }
+      return w;
+    }
+    function getCycleCfg() {
+      try {
+        if (window.Game && typeof window.Game.getCycle === 'function') return window.Game.getCycle();
+      } catch (e) {}
+      return (window.RULES && window.RULES.CYCLE_DEFAULT) || null;
+    }
 
     /* ---------- ngày nghỉ / không có dữ liệu ---------- */
     if (!day || day.rest || !day.exercises || !day.exercises.length) {
@@ -119,6 +151,11 @@
       weightNow: {},         // exIndex -> mức tạ đang chọn
       checkinResult: null,
       xpEarned: 0,
+      // số giây cardio ĐÃ TẬP THẬT (dùng để ước tính calo)
+      stairsEasySec: 0,      // chị tập cầu thang ở mức nhẹ → tất cả vào đây
+      stairsHardSec: 0,
+      treadmillSec: 0,       // đi bộ nhanh
+      treadmillSlowSec: 0,   // đi rất chậm (chế độ ngày đèn đỏ)
       timers: [],
       timeouts: [],
       mounts: [],
@@ -128,11 +165,38 @@
     var weekMode = window.Game.getWeekMode();
 
     function totalSetsOf(ex) {
+      if (isPeriodMode) return 2;   // ngày đèn đỏ: luôn 2 hiệp
       if (weekMode === 'first2') return Math.min(ex.sets, ex.setsFirst2Weeks || ex.sets);
       return ex.sets;
     }
     function effectiveMachineId(i) {
       return S.machineOverride[i] || day.exercises[i].machineId;
+    }
+
+    /* ---------- mức tạ gợi ý ----------
+       id bài tập có dạng 'd<dow>_<key>'. Ngày đèn đỏ dùng 'd0_...' nên phải
+       tra cả mức tạ của cùng bài tập ở các ngày thường. */
+    function baseKeyOf(id) {
+      var m = /^d\d+_(.+)$/.exec(id || '');
+      return m ? m[1] : (id || '');
+    }
+    function lastWeightAnyDay(exId) {
+      var direct = window.Game.lastWeight(exId);
+      if (direct) return direct;
+      var key = baseKeyOf(exId);
+      if (!key) return null;
+      for (var d = 1; d <= 7; d++) {
+        if (('d' + d + '_' + key) === exId) continue;
+        var w = window.Game.lastWeight('d' + d + '_' + key);
+        if (w) return w;
+      }
+      return null;
+    }
+    function defaultWeightFor(ex) {
+      var lw = lastWeightAnyDay(ex.id);
+      if (!lw) return 0;
+      if (!isPeriodMode) return lw;
+      return Math.max(0, Math.round(lw * 0.5 * 2) / 2);  // 40–50%, làm tròn 0,5 kg
     }
 
     /* ---------- quản lý dọn dẹp ---------- */
@@ -261,7 +325,8 @@
         case 'guide':
         case 'work':
         case 'rest': return 2 + S.exIndex;
-        case 'treadmill': return 2 + N;
+        // Ngày đèn đỏ: máy chạy bộ nằm ở ĐẦU buổi (thay cho cầu thang)
+        case 'treadmill': return isPeriodMode ? 1 : (2 + N);
         case 'summary': return 3 + N;
         default: return 0;
       }
@@ -322,7 +387,8 @@
     function goStairs() { S.stage = 'stairs'; render(buildStairs); }
     function goTravel(i) {
       S.exIndex = i;
-      var fromId = i === 0 ? 'stairs' : effectiveMachineId(i - 1);
+      // Ngày thường bắt đầu từ máy leo cầu thang; ngày đèn đỏ từ máy chạy bộ.
+      var fromId = i === 0 ? (isPeriodMode ? 'treadmill_1' : 'stairs') : effectiveMachineId(i - 1);
       if (fromId === effectiveMachineId(i)) { goGuide(i); return; }
       S.stage = 'travel';
       render(function (rootEl) { buildTravel(rootEl, fromId); });
@@ -333,6 +399,7 @@
     function goNextExercise() {
       var next = S.exIndex + 1;
       if (next < N) goTravel(next);
+      else if (isPeriodMode) goSummary();   // máy chạy bộ đã tập ở đầu buổi rồi
       else goTreadmill();
     }
     function goTreadmill() { S.stage = 'treadmill'; render(buildTreadmill); }
@@ -342,23 +409,63 @@
        INTRO
        ============================================================ */
     function buildIntro(rootEl) {
+      var iso = todayIso();
+
+      /* --- phòng gym đóng cửa: chỉ cảnh báo, KHÔNG chặn --- */
+      var closed = false;
+      try { closed = !!(window.RULES && window.RULES.isClosedDay(iso)); } catch (e) {}
+      if (closed) {
+        rootEl.appendChild(el('div', { class: 'sess-closed-banner' },
+          '🌿 Hôm nay phòng gym nghỉ (Chủ Nhật tuần 2 và tuần 4). ' +
+          'Nếu phòng vẫn mở thì em cứ tập bình thường nhé — ngày nghỉ không làm đứt chuỗi.'));
+      }
+
+      /* --- chế độ ngày đèn đỏ / gợi ý chuyển chế độ --- */
+      if (isPeriodMode) {
+        rootEl.appendChild(el('div', { class: 'sess-period-banner' },
+          '💗 Chế độ ngày đèn đỏ — hôm nay mình tập nhẹ thôi'));
+      } else {
+        var ci = null;
+        try { ci = window.RULES.cycleInfo(iso, getCycleCfg()); } catch (e) { ci = null; }
+        if (ci && ci.configured && ci.isPeriod) {
+          rootEl.appendChild(el('div', { class: 'sess-period-banner' },
+            'Hôm nay là ngày đèn đỏ. Em có muốn chuyển sang chế độ nhẹ nhàng không?'));
+          rootEl.appendChild(el('div', { style: { marginBottom: '14px' } },
+            UI.secondaryBtn('💗 Chuyển sang chế độ nhẹ nhàng', function () {
+              fullCleanup();
+              location.hash = '#session/0';
+            })));
+        }
+      }
+
       var badges = el('div', { class: 'row-wrap', style: { marginBottom: '12px' } },
-        UI.chip(day.nameVi, 'var(--gold)'),
+        UI.chip(day.nameVi, isPeriodMode ? '#FF9ED2' : 'var(--gold)'),
         UI.chip(day.focusVi, null),
-        weekMode === 'first2' ? UI.chip('2 hiệp mỗi bài (2 tuần đầu)', 'var(--ok)') : null
+        isPeriodMode
+          ? UI.chip('2 hiệp mỗi bài · tạ nhẹ', '#FF9ED2')
+          : (weekMode === 'first2' ? UI.chip('2 hiệp mỗi bài (2 tuần đầu)', 'var(--ok)') : null)
       );
 
-      var planItems = [
+      var tmMinutes = (day.treadmill && day.treadmill.minutes) || 20;
+      var planItems = isPeriodMode ? [
+        tmMinutes + ' phút đi bộ THẬT CHẬM trên máy chạy bộ (hôm nay bỏ cầu thang)',
+        N + ' bài tập nhẹ · 2 hiệp mỗi bài',
+        'Mức tạ khoảng 40–50% mức thường ngày'
+      ] : [
         '10 phút máy leo cầu thang (khởi động)',
         N + ' bài tập máy (khoảng 50 phút)',
-        '20 phút đi bộ nhanh trên máy chạy bộ'
+        tmMinutes + ' phút đi bộ nhanh trên máy chạy bộ'
       ];
 
       rootEl.appendChild(el('div', { style: { textAlign: 'center', margin: '6px 0 14px' } },
         el('div', { style: { fontSize: '15px', color: 'var(--text-dim)', fontWeight: '700', letterSpacing: '1px' } },
-          'BUỔI TẬP HÔM NAY · 80 PHÚT'),
-        el('div', { style: { fontSize: '30px', fontWeight: '800', color: 'var(--gold)', marginTop: '4px' } },
-          day.titleVi)
+          isPeriodMode ? 'BUỔI TẬP NHẸ HÔM NAY · KHOẢNG 45 PHÚT' : 'BUỔI TẬP HÔM NAY · 80 PHÚT'),
+        el('div', {
+          style: {
+            fontSize: '30px', fontWeight: '800',
+            color: isPeriodMode ? '#FF9ED2' : 'var(--gold)', marginTop: '4px'
+          }
+        }, day.titleVi)
       ));
       rootEl.appendChild(badges);
       rootEl.appendChild(UI.card('Cấu trúc buổi tập', 'gold', UI.numberedList(planItems)));
@@ -368,15 +475,33 @@
       });
       rootEl.appendChild(UI.card('Các bài hôm nay', 'leg', UI.bulletList(exNames, 'var(--leg)')));
 
-      if (day.tipsVi && day.tipsVi.length) {
+      if (isPeriodMode) {
+        rootEl.appendChild(UI.card('Lưu ý cho ngày đèn đỏ 💗', 'ok',
+          UI.bulletList(day.tipsVi || [], '#FF9ED2'),
+          el('div', {
+            style: {
+              marginTop: '10px', fontSize: '16px', fontWeight: '700',
+              color: '#FF9ED2', lineHeight: '1.45'
+            }
+          }, 'Nếu đau bụng nhiều, chỉ cần giãn cơ ở khu stretching cũng được tính điểm danh.')
+        ));
+      } else if (day.tipsVi && day.tipsVi.length) {
         rootEl.appendChild(UI.card('Mẹo hôm nay', 'ok', UI.bulletList(day.tipsVi, 'var(--ok)')));
       }
 
-      rootEl.appendChild(el('div', { class: 'sess-sticky-bottom' },
-        UI.primaryBtn('Bắt đầu với máy leo cầu thang', goStairs),
-        el('div', { class: 'mt-8' },
-          UI.secondaryBtn('Bỏ qua cầu thang', function () { goTravel(0); }))
-      ));
+      if (isPeriodMode) {
+        rootEl.appendChild(el('div', { class: 'sess-sticky-bottom' },
+          UI.primaryBtn('Bắt đầu với máy chạy bộ (đi thật chậm)', goTreadmill),
+          el('div', { class: 'mt-8' },
+            UI.secondaryBtn('Bỏ qua máy chạy bộ', function () { goTravel(0); }))
+        ));
+      } else {
+        rootEl.appendChild(el('div', { class: 'sess-sticky-bottom' },
+          UI.primaryBtn('Bắt đầu với máy leo cầu thang', goStairs),
+          el('div', { class: 'mt-8' },
+            UI.secondaryBtn('Bỏ qua cầu thang', function () { goTravel(0); }))
+        ));
+      }
     }
 
     /* ============================================================
@@ -384,6 +509,7 @@
        ============================================================ */
     function buildStairs(rootEl) {
       var st = day.stairs;
+      if (!st) { goTravel(0); return; }   // ngày đèn đỏ không có cầu thang
       var totalSec = st.minutes * 60;
 
       rootEl.appendChild(el('div', { style: { textAlign: 'center', marginBottom: '10px' } },
@@ -402,10 +528,14 @@
         size: 210,
         subVi: 'còn lại',
         onTick: function (remaining) {
+          S.stairsEasySec += 1;   // đếm số giây tập THẬT (không tính lúc tạm dừng)
           var elapsedMin = Math.floor((totalSec - remaining) / 60);
           phaseEl.textContent = phaseTextAt(st.phases, elapsedMin);
         },
-        onDone: function () { addTimeout(function () { goTravel(0); }, 600); }
+        onDone: function () {
+          S.stairsEasySec += 1;
+          addTimeout(function () { goTravel(0); }, 600);
+        }
       });
 
       rootEl.appendChild(cd.el);
@@ -541,11 +671,17 @@
           '💡 ' + ex.noteVi));
       }
 
-      var lw = window.Game.lastWeight(ex.id);
+      var lw = lastWeightAnyDay(ex.id);
       if (lw) {
         rootEl.appendChild(el('div', { class: 'text-center', style: { fontSize: '16px', marginBottom: '10px' } },
           'Lần trước em dùng: ',
           el('span', { class: 'text-gold', style: { fontWeight: '800' } }, lw + ' kg')));
+      }
+      if (isPeriodMode) {
+        rootEl.appendChild(el('div', {
+          class: 'text-center',
+          style: { fontSize: '16px', fontWeight: '700', color: '#FF9ED2', marginBottom: '10px' }
+        }, 'Dùng khoảng 40–50% mức tạ thường ngày' + (lw ? ' (≈ ' + defaultWeightFor(ex) + ' kg)' : '')));
       }
 
       rootEl.appendChild(el('div', { class: 'sess-sticky-bottom' },
@@ -605,7 +741,8 @@
       if (S.weightNow[i] != null) {
         weightVal = S.weightNow[i];
       } else {
-        weightVal = window.Game.lastWeight(ex.id) || 0;
+        // Ngày đèn đỏ: gợi ý 50% mức tạ gần nhất (làm tròn 0,5 kg)
+        weightVal = defaultWeightFor(ex) || 0;
       }
       var weightEl = el('div', { class: 'sess-weight-val' }, formatW(weightVal));
       function formatW(w) { return (Math.round(w * 100) / 100) + ' kg'; }
@@ -623,7 +760,11 @@
           el('div', { class: 'row', style: { justifyContent: 'center', gap: '8px' } },
             stepBtn('−2.5', -2.5), stepBtn('−1.25', -1.25),
             weightEl,
-            stepBtn('+1.25', 1.25), stepBtn('+2.5', 2.5))));
+            stepBtn('+1.25', 1.25), stepBtn('+2.5', 2.5)),
+          isPeriodMode ? el('div', {
+            class: 'text-center',
+            style: { fontSize: '15px', fontWeight: '700', color: '#FF9ED2', marginTop: '10px' }
+          }, 'Dùng khoảng 40–50% mức tạ thường ngày') : null));
       }
 
       /* --- nhập số lần --- */
@@ -711,24 +852,42 @@
        ============================================================ */
     function buildTreadmill(rootEl) {
       var tm = day.treadmill;
+      // Ngày đèn đỏ: máy chạy bộ là phần KHỞI ĐỘNG → xong thì đi tới bài đầu tiên.
+      var afterTreadmill = isPeriodMode ? function () { goTravel(0); } : goSummary;
+      if (!tm) { afterTreadmill(); return; }
       var totalSec = tm.minutes * 60;
 
       rootEl.appendChild(el('div', { style: { textAlign: 'center', marginBottom: '10px' } },
         el('div', { class: 'sess-machine-name' }, 'Máy chạy bộ'),
-        el('div', { class: 'sess-machine-ko' }, '런닝머신 · 20 phút đi bộ nhanh')
+        el('div', { class: 'sess-machine-ko' },
+          '런닝머신 · ' + tm.minutes + ' phút ' + (isPeriodMode ? 'đi bộ thật chậm' : 'đi bộ nhanh'))
       ));
+
+      if (isPeriodMode) {
+        rootEl.appendChild(el('div', { class: 'sess-period-banner' },
+          '💗 Đi thật chậm thôi — chỉ để máu lưu thông'));
+      }
 
       var phaseEl = el('div', { class: 'sess-phase', style: { margin: '14px 0 10px' } },
         phaseTextAt(tm.phases, 0));
+
+      function addTreadSec() {
+        if (isPeriodMode) S.treadmillSlowSec += 1;   // MET 3.0
+        else S.treadmillSec += 1;                    // MET 3.8
+      }
 
       var cd = countdown(totalSec, {
         size: 210,
         subVi: 'còn lại',
         onTick: function (remaining) {
+          addTreadSec();
           var elapsedMin = Math.floor((totalSec - remaining) / 60);
           phaseEl.textContent = phaseTextAt(tm.phases, elapsedMin);
         },
-        onDone: function () { addTimeout(goSummary, 600); }
+        onDone: function () {
+          addTreadSec();
+          addTimeout(afterTreadmill, 600);
+        }
       });
       rootEl.appendChild(cd.el);
       rootEl.appendChild(phaseEl);
@@ -742,7 +901,7 @@
         UI.bulletList(tm.rulesVi, 'var(--cardio)')));
 
       rootEl.appendChild(el('div', { class: 'sess-sticky-bottom' },
-        UI.primaryBtn('Xong! →', goSummary),
+        UI.primaryBtn(isPeriodMode ? 'Xong đi bộ →' : 'Xong! →', function () { afterTreadmill(); }),
         el('div', { class: 'mt-8' }, pauseBtn)
       ));
     }
@@ -754,22 +913,77 @@
       var durationSec = Math.max(1, Math.round((Date.now() - S.startedAt) / 1000));
       var setsCount = 0;
       var volume = 0;
+      var setReps = [];          // dữ liệu cho RULES.estimateWorkoutKcal
+      var totalRestSec = 0;      // mỗi hiệp đã xong = 1 lần nghỉ của bài đó
+      var transitionCount = 0;   // số bài tập KHÁC NHAU đã thực hiện
+
       for (var i = 0; i < S.records.length; i++) {
         var sets = S.records[i].sets;
+        var ex = day.exercises[i];
+        var perSide = !!(ex && ex.perSide);
+        var restSec = (ex && typeof ex.restSeconds === 'number') ? ex.restSeconds : 60;
+        if (sets.length) transitionCount += 1;
         setsCount += sets.length;
+        // Nghỉ chỉ nằm GIỮA các hiệp → (số hiệp − 1). Phải khớp với công thức
+        // tính ngược trong RULES.backfillKcal, nếu không calo sẽ lệch.
+        totalRestSec += Math.max(0, sets.length - 1) * restSec;
+
         for (var j = 0; j < sets.length; j++) {
           var s = sets[j];
           if (typeof s.weight === 'number' && typeof s.reps === 'number') {
             volume += s.weight * s.reps;
           }
+          if (s.seconds != null) {
+            // bài tính theo thời gian (plank...) → RULES cộng thêm 6 giây chuẩn bị
+            setReps.push({ timeSeconds: s.seconds, perSide: perSide });
+          } else {
+            setReps.push({ reps: (typeof s.reps === 'number' ? s.reps : 0), perSide: perSide });
+          }
         }
       }
-      return { durationSec: durationSec, setsCount: setsCount, volume: Math.round(volume) };
+
+      var weightKg = getWeightKg();
+      var kcalOpts = {
+        weightKg: weightKg,
+        stairsEasySec: S.stairsEasySec,
+        stairsHardSec: S.stairsHardSec,
+        treadmillSec: S.treadmillSec,
+        treadmillSlowSec: S.treadmillSlowSec,
+        setReps: setReps,
+        totalRestSec: totalRestSec,
+        transitionCount: transitionCount
+      };
+      var kcal = 0;
+      try { kcal = window.RULES.estimateWorkoutKcal(kcalOpts) || 0; } catch (e) { kcal = 0; }
+
+      return {
+        durationSec: durationSec,
+        setsCount: setsCount,
+        volume: Math.round(volume),
+        kcal: kcal,
+        weightKg: weightKg,
+        totalRestSec: totalRestSec,
+        transitionCount: transitionCount
+      };
+    }
+
+    /* --- thẻ "ước tính calo" dùng chung cho màn tổng kết --- */
+    function kcalCard(kcal) {
+      var compare = '';
+      try { compare = window.RULES.kcalCompareVi(kcal) || ''; } catch (e) { compare = ''; }
+      return UI.card('🔥 Ước tính đã đốt', 'cardio',
+        el('div', { class: 'text-center' },
+          el('div', { class: 'sess-kcal-big' }, kcal + ' kcal'),
+          compare ? el('div', { class: 'sess-kcal-sub' }, '≈ ' + compare) : null,
+          el('div', { class: 'sess-kcal-note' },
+            'Đây chỉ là ước tính dựa trên thời gian và số hiệp, không phải số đo chính xác.')
+        ));
     }
 
     function buildSummary(rootEl) {
       var stats = sessionStats();
-      var xp = stats.setsCount * 10 + 100;
+      // XP = số hiệp × 10 + 100 + thưởng calo
+      var xp = stats.setsCount * 10 + 100 + Math.round(stats.kcal / 10);
       S.xpEarned = xp;
 
       if (S.checkinResult) { buildCelebration(rootEl, stats); return; }
@@ -790,7 +1004,9 @@
         UI.statPill('Khối lượng', stats.volume + ' kg')
       ));
 
-      rootEl.appendChild(el('div', { class: 'text-center', style: { fontSize: '18px', fontWeight: '700', marginBottom: '14px' } },
+      rootEl.appendChild(kcalCard(stats.kcal));
+
+      rootEl.appendChild(el('div', { class: 'text-center', style: { fontSize: '18px', fontWeight: '700', margin: '14px 0' } },
         'Phần thưởng: ', el('span', { class: 'text-gold' }, '+' + xp + ' XP')));
 
       rootEl.appendChild(UI.primaryBtn('Đóng dấu điểm danh ✅', function () {
@@ -802,6 +1018,15 @@
           titleVi: day.titleVi,
           xp: xp,
           durationSec: stats.durationSec,
+          kcal: stats.kcal,
+          weightKg: stats.weightKg,
+          periodMode: isPeriodMode,
+          stairsEasySec: S.stairsEasySec,
+          stairsHardSec: S.stairsHardSec,
+          treadmillSec: S.treadmillSec,
+          treadmillSlowSec: S.treadmillSlowSec,
+          totalRestSec: stats.totalRestSec,
+          transitionCount: stats.transitionCount,
           sets: flatSets(),
           exercises: S.records.map(function (r) {
             return { id: r.id, nameVi: r.nameVi, machineId: r.machineId, sets: r.sets.slice() };
@@ -862,6 +1087,12 @@
         }
       }
 
+      if (stats.kcal > 0) {
+        inner.appendChild(el('div', { class: 'sess-kcal-line' }, '🔥 ' + stats.kcal + ' kcal'));
+      }
+      inner.appendChild(el('div', { class: 'sess-kcal-note' },
+        'Ngày nghỉ và ngày phòng gym đóng cửa không làm đứt chuỗi.'));
+
       rootEl.appendChild(UI.card(null, 'gold', inner));
 
       rootEl.appendChild(el('div', {
@@ -871,6 +1102,10 @@
         UI.statPill('Hiệp', stats.setsCount),
         UI.statPill('Khối lượng', stats.volume + ' kg')
       ));
+
+      rootEl.appendChild(kcalCard(stats.kcal));
+
+      rootEl.appendChild(el('div', { class: 'mt-16' }));
 
       rootEl.appendChild(UI.primaryBtn('Xem lịch điểm danh', function () {
         fullCleanup();

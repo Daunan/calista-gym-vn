@@ -321,7 +321,7 @@
   };
 
   /* ============================================================
-   * ROUTINE — 주 6일 (수요일 휴식), 매일 80분
+   * ROUTINE — 주 6일 (목요일 휴식), 매일 약 90~100분
    * 운동 설명 베트남어는 루틴 txt 원문 그대로.
    * ============================================================ */
 
@@ -681,6 +681,254 @@
         'Không để lưng bị võng.'
       ],
       noteVi: 'Nếu quá khó, có thể đặt đầu gối xuống thảm.'
+    },
+
+    /* ── 추가 종목 (운동량 확대) ───────────────────────────── */
+
+    hip_add_abductor: {
+      nameVi: 'Hip Abduction (ngồi)', nameKo: '힙어브덕터', machineId: 'hip_add_abductor',
+      motion: 'hip_abduction_standing', restSeconds: 60,
+      muscles: [{ m: 'abductor', level: 1 }, { m: 'glute', level: 1 }],
+      setupVi: [
+        'Ngồi thẳng, lưng và mông áp sát vào đệm lưng.',
+        'Chỉnh máy sang chế độ dạng — hai tấm đệm nằm ở mặt ngoài của đùi.',
+        'Đặt hai bàn chân lên bệ để chân, đầu gối gập khoảng 90 độ.',
+        'Khép hai đùi lại làm vị trí bắt đầu.',
+        'Hai tay nắm nhẹ tay cầm hai bên ghế.'
+      ],
+      formVi: [
+        'Siết nhẹ bụng, giữ lưng luôn áp sát đệm.',
+        'Từ từ mở hai đùi sang hai bên.',
+        'Thở ra khi mở chân.',
+        'Chỉ mở đến mức còn thấy thoải mái, không cần mở hết cỡ.',
+        'Giữ 1 giây và siết cơ mông.',
+        'Hít vào và khép chân lại trong 2–3 giây.'
+      ],
+      cautionsVi: [
+        'Không ngả người ra sau để lấy đà.',
+        'Không mở chân quá rộng làm căng háng.',
+        'Không để tạ rơi mạnh khi khép chân.'
+      ],
+      noteVi: 'Máy này có hai chế độ. Hôm nay chỉ dùng chế độ dạng (đẩy đùi ra ngoài) để tập mông bên.'
+    },
+
+    monster_glute: {
+      nameVi: 'Monster Glute', nameKo: '몬스터 글루트', machineId: 'monster_glute',
+      motion: 'hip_abduction_standing', restSeconds: 60, perSide: true,
+      muscles: [{ m: 'glute', level: 1 }, { m: 'hamstring', level: 2 }],
+      setupVi: [
+        'Đứng đối diện máy, hai tay nắm chắc tay cầm phía trước.',
+        'Đặt bàn chân trụ lên bệ đứng.',
+        'Đặt chân tập lên bàn đạp, đầu gối gập lại.',
+        'Chỉnh đệm ngực để thân trên tựa vào và không bị lắc.',
+        'Bắt đầu bằng mức tạ nhẹ nhất trong buổi đầu.'
+      ],
+      formVi: [
+        'Siết bụng, giữ lưng thẳng, không ưỡn lưng dưới.',
+        'Đạp bàn đạp ra phía sau bằng cả bàn chân.',
+        'Thở ra khi đạp và siết chặt cơ mông.',
+        'Duỗi chân đến mức thoải mái, không khóa cứng đầu gối.',
+        'Hít vào và thu chân về thật chậm.',
+        'Hoàn thành đủ số lần một bên rồi mới đổi chân.'
+      ],
+      cautionsVi: [
+        'Không ưỡn lưng dưới để đẩy tạ.',
+        'Không xoay hông sang một bên.',
+        'Không đá chân nhanh bằng lực quán tính.'
+      ],
+      noteVi: 'Bài này tập trực tiếp cơ mông. Cảm nhận mông siết lại quan trọng hơn mức tạ.'
+    },
+
+    pec_rear_delt_fly: {
+      nameVi: 'Rear Delt Fly', nameKo: '리어델트 플라이', machineId: 'pec_rear_delt_fly',
+      motion: 'row', restSeconds: 60,
+      muscles: [{ m: 'delt_rear', level: 1 }, { m: 'rhomboid', level: 2 }, { m: 'trap_mid', level: 2 }],
+      setupVi: [
+        'Chỉnh máy sang chế độ Rear Delt — hai tay cầm nằm ở phía trước mặt.',
+        'Chỉnh ghế để tay cầm ngang với vai.',
+        'Ngồi quay mặt vào đệm ngực, ngực áp sát đệm.',
+        'Hai chân đặt chắc trên sàn.',
+        'Nắm tay cầm với hai tay gần thẳng, khuỷu tay chỉ hơi cong.'
+      ],
+      formVi: [
+        'Hạ vai xuống, không nhún vai lên tai.',
+        'Mở hai tay ra sau theo đường vòng cung.',
+        'Nghĩ đến việc siết nhẹ hai xương bả vai lại.',
+        'Thở ra khi mở tay.',
+        'Chỉ mở đến ngang thân người, không cố ra xa hơn.',
+        'Hít vào và đưa tay về phía trước thật chậm.'
+      ],
+      cautionsVi: [
+        'Không dùng lực quán tính để hất tay ra sau.',
+        'Không nhấc ngực khỏi đệm.',
+        'Không gập khuỷu tay lại thành động tác kéo.'
+      ],
+      noteVi: 'Bài này tập vai sau nên phải dùng mức tạ nhẹ.'
+    },
+
+    // motion.js 에 'curl' 이 없어 가장 가까운 'row' 로 대체함.
+    arm_curl: {
+      nameVi: 'Arm Curl', nameKo: '암컬', machineId: 'arm_curl',
+      motion: 'row', restSeconds: 60,
+      muscles: [{ m: 'biceps', level: 1 }, { m: 'forearm', level: 2 }],
+      setupVi: [
+        'Chỉnh ghế để nách tì vừa lên mép trên của đệm dốc.',
+        'Ngồi thẳng, ngực hơi mở, hai chân đặt chắc trên sàn.',
+        'Đặt trọn phần sau cánh tay lên đệm.',
+        'Nắm hai tay cầm, lòng bàn tay hướng lên trên.',
+        'Duỗi tay gần thẳng làm vị trí bắt đầu.'
+      ],
+      formVi: [
+        'Giữ khuỷu tay cố định trên đệm, không nhấc lên.',
+        'Gập tay cầm lên phía vai.',
+        'Thở ra khi gập tay.',
+        'Giữ 1 giây ở vị trí trên và siết bắp tay.',
+        'Hít vào và hạ xuống trong 2–3 giây.',
+        'Dừng trước khi khuỷu tay bị duỗi khóa cứng.'
+      ],
+      cautionsVi: [
+        'Không ngả thân người ra sau để kéo tạ.',
+        'Không bẻ gập cổ tay.',
+        'Nếu khuỷu tay đau, giảm tạ ngay.'
+      ],
+      noteVi: 'Bài này tập bắp tay trước, dùng mức tạ nhẹ.'
+    },
+
+    // motion.js 에 'hip_thrust' 가 없어 가장 가까운 'leg_press' 로 대체함.
+    hip_thrust: {
+      nameVi: 'Hip Thrust', nameKo: '힙 쓰러스트', machineId: 'hip_thrust',
+      motion: 'leg_press', restSeconds: 75,
+      muscles: [{ m: 'glute', level: 1 }, { m: 'hamstring', level: 2 }],
+      setupVi: [
+        'Ngồi vào máy, tựa phần lưng trên vào đệm lưng.',
+        'Chỉnh đệm hông sao cho nó nằm trên nếp bẹn, không nằm trên bụng.',
+        'Đặt hai bàn chân lên bệ, rộng bằng hông.',
+        'Đầu gối gập khoảng 90 độ khi hông đã đẩy lên.',
+        'Hai tay giữ tay cầm hai bên.'
+      ],
+      formVi: [
+        'Siết bụng và thu nhẹ xương chậu về phía sau.',
+        'Đạp bằng gót chân và đẩy hông lên trên.',
+        'Thở ra khi đẩy lên, siết chặt cơ mông 1 giây.',
+        'Chỉ đẩy đến khi thân và đùi thành một đường thẳng.',
+        'Hít vào và hạ hông xuống thật chậm.',
+        'Không để tạ chạm hẳn xuống giữa các lần.'
+      ],
+      cautionsVi: [
+        'Không ưỡn lưng dưới ở vị trí trên cùng.',
+        'Không đẩy hông lên quá cao.',
+        'Không nhấc gót chân khỏi bệ.',
+        'Nếu đệm đè đau xương hông, lót thêm khăn.'
+      ],
+      noteVi: 'Bài mông mạnh nhất trong ngày. Bắt đầu nhẹ và tăng dần từng nấc.'
+    },
+
+    hip_press: {
+      nameVi: 'Hip Press', nameKo: '힙 프레스', machineId: 'hip_press',
+      motion: 'leg_press', restSeconds: 60, perSide: true,
+      muscles: [{ m: 'glute', level: 1 }, { m: 'hamstring', level: 2 }],
+      setupVi: [
+        'Đứng vào máy, hai tay nắm tay cầm phía trước.',
+        'Đặt chân trụ chắc lên bệ đứng.',
+        'Đặt bàn chân tập lên bàn đạp, cả bàn chân áp sát.',
+        'Chỉnh đệm tựa để thân trên không bị lắc.',
+        'Hông và vai hướng thẳng về phía trước.'
+      ],
+      formVi: [
+        'Siết bụng, giữ lưng thẳng.',
+        'Đạp bàn đạp ra phía sau bằng gót chân.',
+        'Thở ra khi đạp và siết cơ mông.',
+        'Dừng trước khi đầu gối bị khóa cứng.',
+        'Hít vào và thu chân về từ từ trong 2–3 giây.',
+        'Hoàn thành một bên rồi đổi chân.'
+      ],
+      cautionsVi: [
+        'Không ưỡn lưng dưới để đẩy thêm tạ.',
+        'Không xoay hông sang bên.',
+        'Không thả tạ rơi khi thu chân về.'
+      ],
+      noteVi: 'Nếu máy đang có người dùng, có thể thay bằng Monster Glute.'
+    },
+
+    pullover: {
+      nameVi: 'Pullover', nameKo: '풀오버', machineId: 'pullover',
+      motion: 'pulldown', restSeconds: 60,
+      muscles: [{ m: 'lat', level: 1 }, { m: 'triceps', level: 2 }, { m: 'chest_lower', level: 2 }],
+      setupVi: [
+        'Chỉnh ghế để vai ngang với trục xoay của máy.',
+        'Ngồi thẳng, lưng áp sát đệm.',
+        'Cài đai bụng (nếu máy có) để thân không bị nâng lên.',
+        'Đặt hai cẳng tay hoặc hai tay lên thanh đòn phía trên.',
+        'Hai chân đặt chắc trên sàn hoặc trên bệ để chân.'
+      ],
+      formVi: [
+        'Hạ vai xuống và mở nhẹ ngực.',
+        'Kéo thanh đòn xuống theo vòng cung về phía bụng.',
+        'Nghĩ đến việc dùng cơ xô, không dùng sức tay.',
+        'Thở ra khi kéo xuống.',
+        'Giữ 1 giây ở vị trí dưới.',
+        'Hít vào và để thanh đòn đi lên thật chậm.'
+      ],
+      cautionsVi: [
+        'Không để thân người bị nhấc khỏi ghế.',
+        'Không cong lưng dưới.',
+        'Không đưa tay lên quá cao nếu vai thấy khó chịu.'
+      ],
+      noteVi: 'Bài này tập cơ xô theo hướng khác với Lat Pulldown.'
+    },
+
+    triceps_pushdown: {
+      nameVi: 'Triceps Pushdown', nameKo: '트라이셉스 푸시다운', machineId: 'triceps_pushdown',
+      motion: 'pulldown', restSeconds: 60,
+      muscles: [{ m: 'triceps', level: 1 }, { m: 'abs', level: 3 }],
+      setupVi: [
+        'Chỉnh ròng rọc lên vị trí cao ngang mặt.',
+        'Đứng đối diện máy, hai chân rộng bằng vai, một chân hơi lùi.',
+        'Nắm thanh cầm rộng bằng vai.',
+        'Kéo hai khuỷu tay sát vào hai bên sườn.',
+        'Thân người hơi nghiêng về trước, lưng thẳng.'
+      ],
+      formVi: [
+        'Siết bụng và giữ khuỷu tay cố định sát sườn.',
+        'Duỗi cẳng tay đẩy thanh xuống dưới.',
+        'Thở ra khi đẩy xuống.',
+        'Giữ 1 giây và siết cơ tay sau.',
+        'Hít vào và đưa thanh lên từ từ đến khi khuỷu tay gập khoảng 90 độ.',
+        'Chỉ có cẳng tay chuyển động, phần trên cánh tay đứng yên.'
+      ],
+      cautionsVi: [
+        'Không nhún vai lên.',
+        'Không dùng cả thân người để đè thanh xuống.',
+        'Không để khuỷu tay bung ra xa sườn.'
+      ],
+      noteVi: 'Bài này tập cơ tay sau, dùng mức tạ nhẹ và tốc độ chậm.'
+    },
+
+    situp_roman: {
+      nameVi: 'Gập bụng trên ghế', nameKo: '싯업보드', machineId: 'situp_roman',
+      motion: 'plank', restSeconds: 60,
+      muscles: [{ m: 'abs', level: 1 }, { m: 'oblique', level: 2 }],
+      setupVi: [
+        'Chọn ghế gập bụng ở độ dốc thấp nhất.',
+        'Ngồi lên ghế và móc hai bàn chân vào đệm giữ chân.',
+        'Nằm ngả lưng xuống từ từ.',
+        'Bắt chéo hai tay trước ngực, không đan tay sau gáy.',
+        'Cằm hơi thu vào, không ép cằm sát ngực.'
+      ],
+      formVi: [
+        'Siết bụng trước khi bắt đầu.',
+        'Cuộn phần thân trên lên bằng cơ bụng.',
+        'Chỉ nâng lên khoảng một nửa, không cần ngồi dậy hẳn.',
+        'Thở ra khi cuộn lên.',
+        'Giữ 1 giây ở vị trí trên.',
+        'Hít vào và hạ lưng xuống thật chậm.'
+      ],
+      cautionsVi: [
+        'Không kéo cổ bằng hai tay.',
+        'Không dùng lực quán tính để bật lên.',
+        'Nếu lưng dưới đau, dừng ngay và chuyển sang Plank.'
+      ],
+      noteVi: 'Nếu ghế quá dốc hoặc thấy đau lưng, có thể thay bằng Plank ở khu giãn cơ.'
     }
   };
 
@@ -724,7 +972,9 @@
         EX(1, 'seated_leg_curl', { sets: 3, repsLabelVi: '12–15 lần', repMin: 12, repMax: 15 }),
         EX(1, 'hack_squat', { sets: 2, repsLabelVi: '10 lần', repMin: 10, repMax: 10 }),
         EX(1, 'leg_extension', { sets: 2, repsLabelVi: '12–15 lần', repMin: 12, repMax: 15 }),
-        EX(1, 'standing_outthigh', { sets: 2, repsLabelVi: 'mỗi chân 12–15 lần', repMin: 12, repMax: 15 })
+        EX(1, 'standing_outthigh', { sets: 2, repsLabelVi: 'mỗi chân 12–15 lần', repMin: 12, repMax: 15 }),
+        EX(1, 'hip_add_abductor', { sets: 2, repsLabelVi: '15–20 lần', repMin: 15, repMax: 20, restSeconds: 60 }),
+        EX(1, 'monster_glute', { sets: 2, repsLabelVi: 'mỗi chân 12–15 lần', repMin: 12, repMax: 15, restSeconds: 60, altMachineIds: ['hip_press'] })
       ],
       tipsVi: [
         'Nếu bàn trượt của Leg Press 40 độ quá nặng ngay cả khi chưa gắn tạ, đổi sang Power Squat hoặc Power Leg Press.',
@@ -742,7 +992,9 @@
         EX(2, 'chest_press', { sets: 3, repsLabelVi: '10–12 lần', repMin: 10, repMax: 12 }),
         EX(2, 'seated_row', { sets: 2, repsLabelVi: '10–12 lần', repMin: 10, repMax: 12 }),
         EX(2, 'lying_leg_curl', { sets: 2, repsLabelVi: '12–15 lần', repMin: 12, repMax: 15 }),
-        EX(2, 'standing_outthigh', { sets: 2, repsLabelVi: 'mỗi chân 15 lần', repMin: 15, repMax: 15 })
+        EX(2, 'standing_outthigh', { sets: 2, repsLabelVi: 'mỗi chân 15 lần', repMin: 15, repMax: 15 }),
+        EX(2, 'pec_rear_delt_fly', { sets: 2, repsLabelVi: '12–15 lần', repMin: 12, repMax: 15, restSeconds: 60 }),
+        EX(2, 'arm_curl', { sets: 2, repsLabelVi: '12–15 lần', repMin: 12, repMax: 15, restSeconds: 60 })
       ],
       tipsVi: [
         'Các bài chân hôm nay dùng mức tạ nhẹ hơn Thứ Hai.',
@@ -760,7 +1012,9 @@
         EX(3, 'power_leg_press', { sets: 3, repsLabelVi: '10–12 lần', repMin: 10, repMax: 12, altMachineIds: ['power_squat'] }),
         EX(3, 'lying_leg_curl', { sets: 3, repsLabelVi: '12–15 lần', repMin: 12, repMax: 15 }),
         EX(3, 'leg_extension', { sets: 2, repsLabelVi: '15 lần', repMin: 15, repMax: 15 }),
-        EX(3, 'standing_outthigh', { sets: 2, repsLabelVi: 'mỗi chân 12–15 lần', repMin: 12, repMax: 15 })
+        EX(3, 'standing_outthigh', { sets: 2, repsLabelVi: 'mỗi chân 12–15 lần', repMin: 12, repMax: 15 }),
+        EX(3, 'hip_thrust', { sets: 2, repsLabelVi: '12–15 lần', repMin: 12, repMax: 15, restSeconds: 75 }),
+        EX(3, 'hip_press', { sets: 2, repsLabelVi: 'mỗi chân 12–15 lần', repMin: 12, repMax: 15, restSeconds: 60, altMachineIds: ['monster_glute'] })
       ],
       tipsVi: [
         'Ở máy Leg Press, đặt bàn chân hơi cao hơn bình thường để dễ cảm nhận mông và mặt sau đùi.',
@@ -790,7 +1044,9 @@
         EX(5, 'chest_press', { sets: 3, repsLabelVi: '10–12 lần', repMin: 10, repMax: 12 }),
         EX(5, 'seated_row', { sets: 3, repsLabelVi: '10–12 lần', repMin: 10, repMax: 12 }),
         EX(5, 'shoulder_press', { sets: 2, repsLabelVi: '10 lần', repMin: 10, repMax: 10 }),
-        EX(5, 'side_lateral_raise', { sets: 2, repsLabelVi: '12–15 lần', repMin: 12, repMax: 15 })
+        EX(5, 'side_lateral_raise', { sets: 2, repsLabelVi: '12–15 lần', repMin: 12, repMax: 15 }),
+        EX(5, 'pullover', { sets: 2, repsLabelVi: '12–15 lần', repMin: 12, repMax: 15, restSeconds: 60 }),
+        EX(5, 'triceps_pushdown', { sets: 2, repsLabelVi: '12–15 lần', repMin: 12, repMax: 15, restSeconds: 60 })
       ],
       tipsVi: [
         'Shoulder Press phải bắt đầu bằng mức tạ rất nhẹ.',
@@ -809,7 +1065,9 @@
         EX(6, 'leg_extension', { sets: 2, repsLabelVi: '15 lần', repMin: 15, repMax: 15 }),
         EX(6, 'standing_outthigh', { sets: 2, repsLabelVi: 'mỗi chân 15 lần', repMin: 15, repMax: 15 }),
         EX(6, 'chest_press', { sets: 2, repsLabelVi: '12 lần', repMin: 12, repMax: 12 }),
-        EX(6, 'lat_pulldown', { sets: 2, repsLabelVi: '12 lần', repMin: 12, repMax: 12 })
+        EX(6, 'lat_pulldown', { sets: 2, repsLabelVi: '12 lần', repMin: 12, repMax: 12 }),
+        EX(6, 'seated_row', { sets: 2, repsLabelVi: '12 lần', repMin: 12, repMax: 12, restSeconds: 60 }),
+        EX(6, 'side_lateral_raise', { sets: 2, repsLabelVi: '15 lần', repMin: 15, repMax: 15, restSeconds: 60 })
       ],
       tipsVi: [
         'Sử dụng mức tạ nhẹ hơn Thứ Hai và Thứ Tư khoảng 20–30%.',
@@ -828,24 +1086,76 @@
         EX(7, 'seated_row', { sets: 2, repsLabelVi: '10–12 lần', repMin: 10, repMax: 12 }),
         EX(7, 'shoulder_press', { sets: 2, repsLabelVi: '10 lần', repMin: 10, repMax: 10 }),
         EX(7, 'side_lateral_raise', { sets: 2, repsLabelVi: '12–15 lần', repMin: 12, repMax: 15 }),
-        EX(7, 'plank', { sets: 2, repsLabelVi: '20–30 giây', repMin: null, repMax: null, timeSeconds: 25 })
+        EX(7, 'plank', { sets: 2, repsLabelVi: '20–30 giây', repMin: null, repMax: null, timeSeconds: 25 }),
+        EX(7, 'situp_roman', { sets: 2, repsLabelVi: '15 lần', repMin: 15, repMax: 15, restSeconds: 60, altMachineIds: ['stretching_zone'] }),
+        EX(7, 'arm_curl', { sets: 2, repsLabelVi: '12–15 lần', repMin: 12, repMax: 15, restSeconds: 60 })
       ],
       tipsVi: [
-        'Plank tập trên thảm ở khu giãn cơ. Nếu quá khó, có thể đặt đầu gối xuống thảm.'
+        'Plank tập trên thảm ở khu giãn cơ. Nếu quá khó, có thể đặt đầu gối xuống thảm.',
+        'Ghế gập bụng để ở độ dốc thấp nhất. Nếu lưng dưới đau thì bỏ bài này.'
       ]
     }
   ];
 
-  // 인덱스
+  /* ============================================================
+   * PERIOD_DAY — 생리 중 대체 루틴 (ROUTINE.periodDay)
+   * 계단 대신 러닝머신 아주 천천히 15분, 전 종목 2세트 (평소 무게의 40~50%).
+   * 복압이 크게 걸리는 종목(핵스쿼트·레그프레스·파워스쿼트·플랭크·힙쓰러스트)은 제외.
+   * dow: 0 → 운동 id 는 'd0_' 접두사라 기존 id 와 겹치지 않는다.
+   * ============================================================ */
+  const PERIOD_DAY = {
+    dow: 0,
+    nameVi: 'Ngày đèn đỏ',
+    titleVi: 'CHẾ ĐỘ NHẸ NHÀNG',
+    focusVi: 'Vận động nhẹ, giữ thói quen',
+    rest: false,
+    periodMode: true,
+    stairs: null,
+    treadmill: {
+      minutes: 15,
+      phases: [
+        { from: 0, to: 2, textVi: 'Đi thật chậm để khởi động' },
+        { from: 2, to: 13, textVi: 'Đi bộ rất chậm 2.5–3.5 km/h, độ dốc 0%' },
+        { from: 13, to: 15, textVi: 'Giảm tốc độ và thả lỏng trong 2 phút cuối' }
+      ],
+      rulesVi: [
+        'Hôm nay bỏ máy leo cầu thang, chỉ đi bộ thật chậm trên máy chạy bộ.',
+        'Phải nói chuyện được thoải mái trong lúc đi. Nếu thấy mệt, giảm tốc độ ngay.',
+        'Không chỉnh độ dốc.',
+        'Nếu bụng đau hoặc thấy chóng mặt, dừng lại và ngồi nghỉ.'
+      ]
+    },
+    exercises: [
+      EX(0, 'lat_pulldown', { sets: 2, repsLabelVi: '12–15 lần', repMin: 12, repMax: 15, restSeconds: 75, noteVi: 'Dùng khoảng 40–50% mức tạ bình thường.' }),
+      EX(0, 'chest_press', { sets: 2, repsLabelVi: '12–15 lần', repMin: 12, repMax: 15, restSeconds: 75, noteVi: 'Dùng khoảng 40–50% mức tạ bình thường.' }),
+      EX(0, 'seated_row', { sets: 2, repsLabelVi: '12–15 lần', repMin: 12, repMax: 15, restSeconds: 75, noteVi: 'Dùng khoảng 40–50% mức tạ bình thường.' }),
+      EX(0, 'side_lateral_raise', { sets: 2, repsLabelVi: '15 lần', repMin: 15, repMax: 15, restSeconds: 60, noteVi: 'Tạ thật nhẹ, chỉ cần cảm nhận cơ vai.' }),
+      EX(0, 'arm_curl', { sets: 2, repsLabelVi: '15 lần', repMin: 15, repMax: 15, restSeconds: 60, noteVi: 'Tạ thật nhẹ, làm chậm và đều.' }),
+      EX(0, 'leg_extension', { sets: 2, repsLabelVi: '15 lần', repMin: 15, repMax: 15, restSeconds: 60, noteVi: 'Hôm nay tập thật nhẹ, chỉ để máu lưu thông.' }),
+      EX(0, 'seated_leg_curl', { sets: 2, repsLabelVi: '15 lần', repMin: 15, repMax: 15, restSeconds: 60, noteVi: 'Hôm nay tập thật nhẹ, chỉ để máu lưu thông.' })
+    ],
+    tipsVi: [
+      'Nếu bụng đau, chỉ cần ra khu giãn cơ (thảm) giãn vùng chậu thôi cũng được tính là đã đi tập.',
+      'Nếu thấy chóng mặt hoặc mệt hơn bình thường, dừng ngay và uống nước.',
+      'Thời gian này không cố tăng mức tạ. Đến phòng tập được là đã đủ tốt rồi.',
+      'Hôm nay bỏ qua các máy chân gây nhiều áp lực lên bụng: Hack Squat, Leg Press, Power Squat, Hip Thrust và cả Plank.'
+    ]
+  };
+
+  // 인덱스 — 요일 루틴 + 생리 중 대체 루틴 전부 포함
+  const ALL_DAYS = DAYS.concat([PERIOD_DAY]);
+
   const EX_BY_ID = {};
-  for (const d of DAYS) {
+  for (const d of ALL_DAYS) {
     for (const e of d.exercises) EX_BY_ID[e.id] = e;
   }
 
   window.ROUTINE = {
     days: DAYS,
+    periodDay: PERIOD_DAY,
 
     forDow(dow) {
+      if (dow === 0) return PERIOD_DAY;
       return DAYS.find(d => d.dow === dow) || null;
     },
 
@@ -855,7 +1165,7 @@
 
     exercisesUsing(machineId) {
       const out = [];
-      for (const d of DAYS) {
+      for (const d of ALL_DAYS) {
         for (const e of d.exercises) {
           if (e.machineId === machineId || e.altMachineIds.includes(machineId)) out.push(e);
         }
@@ -892,7 +1202,7 @@
 
     // ── 전체 구조 규칙 ──────────────────────────────────────
     generalRulesVi: [
-      'Mỗi buổi 80 phút: 10 phút máy leo cầu thang → 50 phút tập máy → 20 phút đi bộ nhẹ trên máy chạy bộ.',
+      'Mỗi buổi khoảng 90–100 phút: 10 phút máy leo cầu thang → 60–70 phút tập máy → 20 phút đi bộ nhẹ trên máy chạy bộ.',
       'Tập 6 ngày mỗi tuần, nghỉ vào Thứ Năm.',
       'Trong 2 tuần đầu tiên, tất cả các bài chỉ tập 2 hiệp.',
       'Máy leo cầu thang chỉ là khởi động (mức 1–3), không cần tập thật nặng.',
