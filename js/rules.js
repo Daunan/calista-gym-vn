@@ -646,6 +646,86 @@
   }
 
   /* ============================================================
+     4b. BMI (tiêu chuẩn châu Á — Thái Bình Dương)
+     ============================================================
+     BMI KHÔNG phân biệt được cơ và mỡ. Với người tập tạ, con số này
+     chỉ là một thông tin tham khảo — luôn hiển thị kèm bmiNoteVi().
+     Giọng văn: bình tĩnh, tích cực, không bao giờ trách móc.
+  */
+
+  var DEFAULT_HEIGHT_CM = 160;
+
+  // Ngưỡng châu Á — Thái Bình Dương (dùng ở Việt Nam / Hàn Quốc)
+  var BMI_NORMAL_MIN = 18.5;
+  var BMI_NORMAL_MAX = 22.9;
+
+  var BMI_LABELS_VI = [
+    'Thiếu cân',
+    'Bình thường',
+    'Tiền béo phì',
+    'Béo phì độ 1',
+    'Béo phì độ 2',
+    'Béo phì độ 3'
+  ];
+
+  var BMI_COLORS = ['#4FA3FF', '#4ED09A', '#F5C542', '#FF9F45', '#FF6B81', '#FF5252'];
+
+  var BMI_ADVICE_VI = [
+    'Tập tạ và tăng cân một chút là dấu hiệu tốt. Nhớ ăn đủ nhé.',
+    'Đang ở khoảng rất tốt. Tập tạ đều mà cân nhích lên một chút cũng là dấu hiệu tốt nhé.',
+    'Chỉ số đang nhỉnh hơn khoảng chuẩn một chút. Giữ lịch tập đều và ăn đủ đạm là ổn.',
+    'Đây chỉ là một con số tham khảo. Tập đều đặn và đi bộ thêm mỗi ngày là cơ thể sẽ thay đổi dần.',
+    'Cứ đi từng bước nhỏ thôi. Duy trì buổi tập và bữa ăn đều đặn, cơ thể sẽ đáp lại.',
+    'Bắt đầu từ những việc nhẹ nhàng và đều đặn là được. Nếu muốn yên tâm hơn, bạn có thể hỏi thêm bác sĩ.'
+  ];
+
+  function round1(x) { return Math.round(num(x, 0) * 10) / 10; }
+
+  // bmi = kg / (m^2). Chiều cao <= 0 → 0.
+  function bmi(weightKg, heightCm) {
+    var w = num(weightKg, 0);
+    var h = num(heightCm, 0);
+    if (h <= 0 || w <= 0) return 0;
+    // Dùng w*10000/(h*h) thay vì chia cho (h/100)^2: (160/100)^2 = 2.5600000000000004
+    // nên 48kg/160cm ra 18.749999... và bị làm tròn xuống 18,7 thay vì 18,8.
+    var v = (w * 10000) / (h * h);
+    if (!isFinite(v) || v <= 0) return 0;
+    return Math.round(v * 10) / 10;
+  }
+
+  function bmiCategoryIndex(bmiValue) {
+    var b = num(bmiValue, 0);
+    if (b <= 0) return 1;          // chưa có dữ liệu → không gán nhãn xấu
+    if (b < 18.5) return 0;
+    if (b < 23) return 1;
+    if (b < 25) return 2;
+    if (b < 30) return 3;
+    if (b < 35) return 4;
+    return 5;
+  }
+
+  function bmiCategoryVi(bmiValue) {
+    var i = bmiCategoryIndex(bmiValue);
+    return { label: BMI_LABELS_VI[i], index: i, color: BMI_COLORS[i] };
+  }
+
+  // Khoảng cân nặng ứng với BMI 18,5 – 22,9
+  function healthyWeightRange(heightCm) {
+    var h = num(heightCm, 0);
+    if (h <= 0) return [0, 0];
+    var m = h / 100;
+    return [round1(BMI_NORMAL_MIN * m * m), round1(BMI_NORMAL_MAX * m * m)];
+  }
+
+  function bmiNoteVi() {
+    return 'BMI không phân biệt được cơ và mỡ. Khi cơ tăng lên thì BMI cũng tăng theo.';
+  }
+
+  function bmiAdviceVi(bmiValue) {
+    return BMI_ADVICE_VI[bmiCategoryIndex(bmiValue)];
+  }
+
+  /* ============================================================
      5. Xuất API
      ============================================================ */
 
@@ -676,6 +756,17 @@
     // chu kỳ kinh nguyệt (không hardcode dữ liệu thật)
     CYCLE_DEFAULT: CYCLE_DEFAULT,
     cycleInfo: cycleInfo,
+
+    // BMI (tiêu chuẩn châu Á — Thái Bình Dương)
+    DEFAULT_HEIGHT_CM: DEFAULT_HEIGHT_CM,
+    BMI_NORMAL_MIN: BMI_NORMAL_MIN,
+    BMI_NORMAL_MAX: BMI_NORMAL_MAX,
+    bmi: bmi,
+    bmiCategoryIndex: bmiCategoryIndex,
+    bmiCategoryVi: bmiCategoryVi,
+    healthyWeightRange: healthyWeightRange,
+    bmiNoteVi: bmiNoteVi,
+    bmiAdviceVi: bmiAdviceVi,
 
     // tiện ích ngày tháng dùng chung
     todayIso: todayIso,

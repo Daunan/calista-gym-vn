@@ -1,7 +1,10 @@
 /* Service Worker — cache-first offline. HLV Gym CALISTA */
 'use strict';
 
-var CACHE = 'gymvn-v4';
+// v5 — thêm BMI / chiều cao / nhật ký cân nặng.
+// Mỗi lần sửa file trong ASSETS PHẢI tăng số này, nếu không iPhone sẽ
+// tiếp tục dùng bản cũ đã lưu trong cache.
+var CACHE = 'gymvn-v5';
 var ASSETS = [
   './',
   './index.html',

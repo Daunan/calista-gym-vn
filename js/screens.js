@@ -355,6 +355,485 @@
   }
 
   // ==========================================================
+  // Chiều cao · BMI · nhật ký cân nặng
+  // (BMI chỉ là MỘT con số tham khảo — luôn hiển thị kèm ghi chú về cơ bắp.)
+  // ==========================================================
+
+  var MIN_HEIGHT_CM = 100;
+  var MAX_HEIGHT_CM = 250;
+
+  // Thang đo của biểu đồ BMI
+  var BMI_SCALE_MIN = 15;
+  var BMI_SCALE_MAX = 35;
+  var BMI_TICKS = [18.5, 23, 25, 30];
+  var BMI_SEGMENTS = [
+    { from: 15, to: 18.5 },
+    { from: 18.5, to: 23 },
+    { from: 23, to: 25 },
+    { from: 25, to: 30 },
+    { from: 30, to: 35 }
+  ];
+
+  // Số thập phân kiểu Việt Nam: 18,8
+  function dec1Vi(x) {
+    var v = Math.round((Number(x) || 0) * 10) / 10;
+    return v.toFixed(1).replace('.', ',');
+  }
+
+  function signedDec1Vi(x) {
+    var v = Math.round((Number(x) || 0) * 10) / 10;
+    var sign = v > 0 ? '+' : (v < 0 ? '−' : '±');
+    return sign + Math.abs(v).toFixed(1).replace('.', ',');
+  }
+
+  function tickLabelVi(v) {
+    return (v === Math.round(v)) ? String(v) : String(v).replace('.', ',');
+  }
+
+  function dayMonthVi(iso) {
+    var p = String(iso || '').split('-');
+    if (p.length < 3) return '';
+    return parseInt(p[2], 10) + '/' + parseInt(p[1], 10);
+  }
+
+  function withAlpha(hex, a) {
+    var m = /^#([0-9a-fA-F]{6})$/.exec(String(hex || ''));
+    if (!m) return 'rgba(245,197,66,' + a + ')';
+    var n = parseInt(m[1], 16);
+    return 'rgba(' + ((n >> 16) & 255) + ',' + ((n >> 8) & 255) + ',' + (n & 255) + ',' + a + ')';
+  }
+
+  function defaultHeight() {
+    var d = R() ? Number(R().DEFAULT_HEIGHT_CM) : 0;
+    return (d >= MIN_HEIGHT_CM && d <= MAX_HEIGHT_CM) ? d : 160;
+  }
+
+  function heightConfigured() {
+    try {
+      if (window.Game && typeof window.Game.isHeightSet === 'function') return !!window.Game.isHeightSet();
+    } catch (e) {}
+    var s = rawState();
+    if (typeof s.heightSet === 'boolean') return s.heightSet;
+    var h = Number(s.heightCm);
+    return isFinite(h) && h > 0;
+  }
+
+  function currentHeight() {
+    var h = 0;
+    try {
+      if (window.Game && typeof window.Game.getHeight === 'function') h = Number(window.Game.getHeight()) || 0;
+    } catch (e) {}
+    if (!(h > 0)) h = Number(rawState().heightCm) || 0;
+    if (!(h > 0)) h = defaultHeight();
+    return h;
+  }
+
+  function saveHeight(cm) {
+    var v = Math.round(Number(cm));
+    if (!(v > 0)) return;
+    if (v < MIN_HEIGHT_CM) v = MIN_HEIGHT_CM;
+    if (v > MAX_HEIGHT_CM) v = MAX_HEIGHT_CM;
+    try {
+      if (window.Game && typeof window.Game.setHeight === 'function') { window.Game.setHeight(v); return; }
+    } catch (e) {}
+    writeRawState({ heightCm: v, heightSet: true });
+  }
+
+  function bmiOf(kg, cm) {
+    try {
+      if (R() && typeof R().bmi === 'function') return Number(R().bmi(kg, cm)) || 0;
+    } catch (e) {}
+    var w = Number(kg), h = Number(cm);
+    if (!(w > 0) || !(h > 0)) return 0;
+    var m = h / 100;
+    return Math.round((w / (m * m)) * 10) / 10;
+  }
+
+  function bmiCat(b) {
+    try {
+      if (R() && typeof R().bmiCategoryVi === 'function') {
+        var c = R().bmiCategoryVi(b);
+        if (c && c.label) return c;
+      }
+    } catch (e) {}
+    return { label: '', index: 1, color: GOLD };
+  }
+
+  function healthyRange(cm) {
+    try {
+      if (R() && typeof R().healthyWeightRange === 'function') {
+        var a = R().healthyWeightRange(cm);
+        if (a && a.length === 2 && Number(a[0]) > 0) return [Number(a[0]), Number(a[1])];
+      }
+    } catch (e) {}
+    var m = Number(cm) / 100;
+    if (!(m > 0)) return [0, 0];
+    return [Math.round(18.5 * m * m * 10) / 10, Math.round(22.9 * m * m * 10) / 10];
+  }
+
+  function bmiNote() {
+    try {
+      if (R() && typeof R().bmiNoteVi === 'function') return R().bmiNoteVi() || '';
+    } catch (e) {}
+    return 'BMI không phân biệt được cơ và mỡ. Khi cơ tăng lên thì BMI cũng tăng theo.';
+  }
+
+  function bmiAdvice(b) {
+    try {
+      if (R() && typeof R().bmiAdviceVi === 'function') return R().bmiAdviceVi(b) || '';
+    } catch (e) {}
+    return '';
+  }
+
+  function weightLog() {
+    try {
+      if (window.Game && typeof window.Game.weightHistory === 'function') {
+        var a = window.Game.weightHistory();
+        return Array.isArray(a) ? a : [];
+      }
+    } catch (e) {}
+    return [];
+  }
+
+  // Ô nhập chiều cao: số + nút −1 / +1 cm
+  function heightControl(initialCm) {
+    var start = Math.round(Number(initialCm) > 0 ? Number(initialCm) : defaultHeight());
+    var input = el('input', {
+      type: 'number', inputmode: 'numeric', step: '1',
+      min: String(MIN_HEIGHT_CM), max: String(MAX_HEIGHT_CM),
+      value: String(start),
+      style: {
+        width: '110px', minHeight: '52px', padding: '8px 10px', textAlign: 'center',
+        borderRadius: '12px', border: '1px solid var(--line)', background: 'var(--surface-alt)',
+        color: GOLD, fontSize: '24px', fontWeight: '800', fontFamily: 'inherit',
+        outline: 'none', WebkitAppearance: 'none'
+      }
+    });
+
+    function read() {
+      var v = parseFloat(String(input.value).replace(',', '.'));
+      if (!isFinite(v)) v = start;
+      v = Math.round(v);
+      if (v < MIN_HEIGHT_CM) v = MIN_HEIGHT_CM;
+      if (v > MAX_HEIGHT_CM) v = MAX_HEIGHT_CM;
+      return v;
+    }
+    function bump(delta) {
+      var v = read() + delta;
+      if (v < MIN_HEIGHT_CM) v = MIN_HEIGHT_CM;
+      if (v > MAX_HEIGHT_CM) v = MAX_HEIGHT_CM;
+      input.value = String(v);
+    }
+    function btn(label, delta) {
+      return el('button', {
+        type: 'button',
+        style: {
+          minHeight: '44px', minWidth: '58px', padding: '0 12px', borderRadius: '12px',
+          border: '1px solid var(--line)', background: 'var(--surface-alt)',
+          color: 'var(--text)', fontSize: '15px', fontWeight: '800', fontFamily: 'inherit'
+        },
+        onclick: function () { bump(delta); }
+      }, label);
+    }
+
+    var node = el('div', null,
+      el('div', { class: 'row', style: { justifyContent: 'center', gap: '8px' } },
+        input,
+        el('div', { style: { fontSize: '17px', fontWeight: '700' } }, 'cm')
+      ),
+      el('div', { class: 'row', style: { justifyContent: 'center', gap: '8px', marginTop: '10px' } },
+        btn('−1', -1), btn('+1', 1)
+      )
+    );
+
+    return { node: node, get: read };
+  }
+
+  // Vẽ canvas theo devicePixelRatio, vẽ lại khi xoay/đổi kích thước màn hình.
+  // Trả về mount có .stop() và tự đăng ký vào App.cleanup.
+  function canvasMount(canvas, cssHeight, draw) {
+    var stopped = false;
+
+    function render() {
+      if (stopped || !canvas.getContext) return;
+      // Màn hình đã bị vẽ lại (canvas không còn trong DOM) → tự dừng, tránh vẽ thừa.
+      // document.body có thể chưa tồn tại nếu bị gọi quá sớm → bỏ qua phần kiểm tra.
+      if (document.body && !document.body.contains(canvas)) { mount.stop(); return; }
+      var dpr = window.devicePixelRatio || 1;
+      var rect = canvas.getBoundingClientRect();
+      var W = Math.max(1, Math.round(rect.width || 320));
+      var H = cssHeight;
+      canvas.width = Math.round(W * dpr);
+      canvas.height = Math.round(H * dpr);
+      var ctx = canvas.getContext('2d');
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.clearRect(0, 0, W, H);
+      try { draw(ctx, W, H); } catch (e) {}
+    }
+
+    function onResize() { render(); }
+
+    drawLater(render);
+    window.addEventListener('resize', onResize);
+
+    var mount = {
+      stop: function () {
+        stopped = true;
+        window.removeEventListener('resize', onResize);
+      }
+    };
+    try {
+      if (window.App && Array.isArray(window.App.cleanup)) window.App.cleanup.push(mount);
+    } catch (e) {}
+    return mount;
+  }
+
+  // Vẽ lại màn hình mà KHÔNG đổi hash (ví dụ sau khi bấm "Lưu").
+  // Phải tự dừng các canvas mount cũ, vì App.cleanup chỉ được dọn khi đổi hash —
+  // nếu không, mỗi lần lưu lại thêm một listener 'resize' nữa.
+  function rerender(fn) {
+    try {
+      var arr = (window.App && Array.isArray(window.App.cleanup)) ? window.App.cleanup : null;
+      if (arr) {
+        for (var i = 0; i < arr.length; i++) {
+          try { if (arr[i] && typeof arr[i].stop === 'function') arr[i].stop(); } catch (e) {}
+        }
+        arr.length = 0;
+      }
+    } catch (e) {}
+    fn();
+  }
+
+  // Thanh BMI ngang: thang 15–35, tô màu theo từng khoảng + con trỏ vị trí hiện tại.
+  function drawBmiGauge(ctx, W, H, bmiValue) {
+    var padX = 12;
+    var barX = padX;
+    var barW = Math.max(20, W - padX * 2);
+    var barY = 22;
+    var barH = 14;
+
+    function xOf(v) {
+      var n = Number(v) || 0;
+      if (n < BMI_SCALE_MIN) n = BMI_SCALE_MIN;
+      if (n > BMI_SCALE_MAX) n = BMI_SCALE_MAX;
+      return barX + ((n - BMI_SCALE_MIN) / (BMI_SCALE_MAX - BMI_SCALE_MIN)) * barW;
+    }
+
+    ctx.save();
+    ctx.beginPath();
+    if (ctx.roundRect) ctx.roundRect(barX, barY, barW, barH, 7);
+    else ctx.rect(barX, barY, barW, barH);
+    ctx.clip();
+    for (var i = 0; i < BMI_SEGMENTS.length; i++) {
+      var seg = BMI_SEGMENTS[i];
+      var x0 = xOf(seg.from), x1 = xOf(seg.to);
+      ctx.fillStyle = bmiCat((seg.from + seg.to) / 2).color;
+      ctx.fillRect(x0, barY, Math.max(1, x1 - x0), barH);
+    }
+    ctx.restore();
+
+    ctx.font = '700 10px -apple-system, "Segoe UI", Roboto, sans-serif';
+    ctx.textAlign = 'center';
+    for (var t = 0; t < BMI_TICKS.length; t++) {
+      var tx = Math.round(xOf(BMI_TICKS[t]));
+      ctx.fillStyle = 'rgba(11,14,20,0.55)';
+      ctx.fillRect(tx - 0.5, barY, 1, barH);
+      ctx.fillStyle = '#98A2B3';
+      ctx.fillText(tickLabelVi(BMI_TICKS[t]), tx, barY + barH + 15);
+    }
+
+    if (Number(bmiValue) > 0) {
+      var mx = xOf(bmiValue);
+      ctx.fillStyle = '#0B0E14';
+      ctx.fillRect(mx - 3, barY - 3, 6, barH + 6);
+      ctx.fillStyle = GOLD;
+      ctx.fillRect(mx - 1.5, barY - 2, 3, barH + 4);
+      ctx.beginPath();
+      ctx.moveTo(mx, barY - 4);
+      ctx.lineTo(mx - 6, barY - 13);
+      ctx.lineTo(mx + 6, barY - 13);
+      ctx.closePath();
+      ctx.fill();
+    }
+  }
+
+  // Biểu đồ đường cân nặng (vàng). Cần ít nhất 2 mốc.
+  function weightTrendCanvas(hist) {
+    var data = hist.slice(Math.max(0, hist.length - 30));
+    var canvas = el('canvas', {
+      style: { width: '100%', height: '132px', display: 'block', marginTop: '10px' }
+    });
+
+    canvasMount(canvas, 132, function (ctx, W, H) {
+      var n = data.length;
+      if (n < 2) return;
+      var padL = 38, padR = 12, padT = 14, padB = 22;
+      var plotW = Math.max(1, W - padL - padR);
+      var plotH = Math.max(1, H - padT - padB);
+
+      var minV = data[0].kg, maxV = data[0].kg;
+      for (var i = 1; i < n; i++) {
+        if (data[i].kg < minV) minV = data[i].kg;
+        if (data[i].kg > maxV) maxV = data[i].kg;
+      }
+      if (maxV - minV < 1) {
+        var mid = (maxV + minV) / 2;
+        minV = mid - 0.5;
+        maxV = mid + 0.5;
+      }
+
+      function xOf(idx) { return padL + (idx / (n - 1)) * plotW; }
+      function yOf(v) { return padT + (1 - (v - minV) / (maxV - minV)) * plotH; }
+
+      ctx.strokeStyle = '#2C3545';
+      ctx.lineWidth = 1;
+      [0, 0.5, 1].forEach(function (t) {
+        var yy = Math.round(padT + t * plotH) + 0.5;
+        ctx.beginPath();
+        ctx.moveTo(padL, yy);
+        ctx.lineTo(padL + plotW, yy);
+        ctx.stroke();
+      });
+
+      ctx.fillStyle = '#98A2B3';
+      ctx.font = '600 10px -apple-system, "Segoe UI", Roboto, sans-serif';
+      ctx.textAlign = 'right';
+      ctx.fillText(dec1Vi(maxV), padL - 6, padT + 4);
+      ctx.fillText(dec1Vi(minV), padL - 6, padT + plotH + 4);
+
+      ctx.beginPath();
+      ctx.moveTo(xOf(0), yOf(data[0].kg));
+      for (var a = 1; a < n; a++) ctx.lineTo(xOf(a), yOf(data[a].kg));
+      ctx.lineTo(xOf(n - 1), padT + plotH);
+      ctx.lineTo(xOf(0), padT + plotH);
+      ctx.closePath();
+      ctx.fillStyle = 'rgba(245,197,66,0.12)';
+      ctx.fill();
+
+      ctx.beginPath();
+      ctx.moveTo(xOf(0), yOf(data[0].kg));
+      for (var b = 1; b < n; b++) ctx.lineTo(xOf(b), yOf(data[b].kg));
+      ctx.strokeStyle = GOLD;
+      ctx.lineWidth = 2;
+      ctx.lineJoin = 'round';
+      ctx.stroke();
+
+      for (var c = 0; c < n; c++) {
+        var isLast = (c === n - 1);
+        ctx.beginPath();
+        ctx.arc(xOf(c), yOf(data[c].kg), isLast ? 4 : 2.5, 0, Math.PI * 2);
+        ctx.fillStyle = GOLD;
+        ctx.fill();
+        if (isLast) {
+          ctx.lineWidth = 2;
+          ctx.strokeStyle = '#0B0E14';
+          ctx.stroke();
+        }
+      }
+
+      ctx.fillStyle = '#98A2B3';
+      ctx.textAlign = 'left';
+      ctx.fillText(dayMonthVi(data[0].date), padL, H - 6);
+      ctx.textAlign = 'right';
+      ctx.fillText(dayMonthVi(data[n - 1].date), padL + plotW, H - 6);
+    });
+
+    return canvas;
+  }
+
+  // Thẻ "Chỉ số cơ thể": BMI + thanh đo + lời nhắn + chỉnh cân nặng/chiều cao + biểu đồ.
+  function buildBodyCard(onSaved) {
+    var weight = currentWeight();
+    var height = currentHeight();
+    var b = bmiOf(weight, height);
+    var cat = bmiCat(b);
+    var range = healthyRange(height);
+
+    var badge = el('span', {
+      style: {
+        display: 'inline-block', padding: '5px 12px', borderRadius: '999px',
+        background: withAlpha(cat.color, 0.16), border: '1px solid ' + cat.color,
+        color: cat.color, fontSize: '13.5px', fontWeight: '800'
+      }
+    }, cat.label);
+
+    var gauge = el('canvas', {
+      style: { width: '100%', height: '68px', display: 'block', marginTop: '12px' }
+    });
+    canvasMount(gauge, 68, function (ctx, W, H) { drawBmiGauge(ctx, W, H, b); });
+
+    var wc = weightControl(weight);
+    var hc = heightControl(height);
+
+    var hist = weightLog();
+    var trendBlock;
+    if (hist.length >= 2) {
+      var delta = Math.round((hist[hist.length - 1].kg - hist[hist.length - 2].kg) * 10) / 10;
+      trendBlock = el('div', null,
+        el('div', { class: 'row', style: { justifyContent: 'space-between', gap: '10px' } },
+          el('div', { style: { fontWeight: '800', fontSize: '15px' } }, 'Thay đổi cân nặng'),
+          el('div', { style: { fontWeight: '800', fontSize: '14.5px', color: GOLD, flex: '0 0 auto' } },
+            'So với lần trước: ' + signedDec1Vi(delta) + ' kg')
+        ),
+        weightTrendCanvas(hist),
+        el('div', { class: 'text-dim', style: { fontSize: '12.5px', marginTop: '4px' } },
+          'Cân nặng lên xuống vài lạng mỗi ngày là hoàn toàn bình thường — hãy nhìn cả đường dài nhé.')
+      );
+    } else {
+      trendBlock = el('div', null,
+        el('div', { style: { fontWeight: '800', fontSize: '15px' } }, 'Thay đổi cân nặng'),
+        el('div', { class: 'text-dim mt-8', style: { fontSize: '13.5px' } },
+          'Mỗi lần em lưu cân nặng, app ghi lại một mốc. Lưu thêm một lần nữa vào ngày khác là sẽ có biểu đồ.')
+      );
+    }
+
+    return window.UI.card('Chỉ số cơ thể', 'gold',
+      el('div', { class: 'row', style: { alignItems: 'flex-end', gap: '10px' } },
+        el('div', { style: { minWidth: '0', flex: '1' } },
+          el('div', { class: 'text-dim', style: { fontSize: '13px', fontWeight: '700' } }, 'BMI'),
+          el('div', { style: { fontSize: '40px', fontWeight: '800', color: GOLD, lineHeight: '1.05' } },
+            dec1Vi(b))
+        ),
+        el('div', { style: { flex: '0 0 auto', textAlign: 'right' } },
+          badge,
+          el('div', { class: 'text-dim', style: { fontSize: '12.5px', marginTop: '6px' } },
+            dec1Vi(weight) + ' kg · ' + Math.round(height) + ' cm')
+        )
+      ),
+
+      gauge,
+
+      el('div', { style: { fontSize: '15px', lineHeight: '1.5', marginTop: '8px' } }, bmiAdvice(b)),
+      el('div', { class: 'text-dim', style: { fontSize: '12.5px', marginTop: '6px', lineHeight: '1.45' } },
+        bmiNote() + ' Đừng đánh giá cơ thể mình chỉ bằng một con số nhé 💗'),
+
+      el('div', { style: { fontSize: '13.5px', marginTop: '10px', color: 'var(--ok)', fontWeight: '700' } },
+        'Cân nặng phù hợp với chiều cao ' + Math.round(height) + 'cm: ' +
+        dec1Vi(range[0]) + ' – ' + dec1Vi(range[1]) + ' kg'),
+
+      el('div', { style: { marginTop: '16px', paddingTop: '14px', borderTop: '1px solid var(--line)' } },
+        el('div', { style: { fontWeight: '800', fontSize: '15px', marginBottom: '8px', textAlign: 'center' } },
+          'Cân nặng (kg)'),
+        wc.node,
+        el('div', { style: { fontWeight: '800', fontSize: '15px', margin: '18px 0 8px', textAlign: 'center' } },
+          'Chiều cao (cm)'),
+        hc.node,
+        el('div', { class: 'mt-16' },
+          window.UI.primaryBtn('Lưu', function () {
+            saveWeight(wc.get());
+            saveHeight(hc.get());
+            if (typeof onSaved === 'function') onSaved();
+          })),
+        el('div', { class: 'text-dim', style: { fontSize: '12.5px', marginTop: '8px', textAlign: 'center' } },
+          'Dùng để ước tính calo và BMI. Chỉ lưu trên máy của em.')
+      ),
+
+      el('div', { style: { marginTop: '16px', paddingTop: '14px', borderTop: '1px solid var(--line)' } },
+        trendBlock)
+    );
+  }
+
+  // ==========================================================
   // HOME
   // ==========================================================
   function home() {
@@ -392,7 +871,7 @@
 
     // --- (a-2) thẻ thiết lập ban đầu ---
     var cfgNow = currentCycle();
-    var needSetup = (!weightConfigured() || !cfgNow.lastStartIso) && !setupSkipped();
+    var needSetup = (!weightConfigured() || !heightConfigured() || !cfgNow.lastStartIso) && !setupSkipped();
     var setupCard = (needSetup || setupForced) ? buildSetupCard() : null;
 
     // --- dải trò chơi (game strip) ---
@@ -433,6 +912,57 @@
       el('div', { class: 'text-dim', style: { fontSize: '12.5px', marginTop: '4px' } },
         'Calo ước tính trong tháng này. Ngày nghỉ không ảnh hưởng đến chuỗi ngày của em.')
     );
+
+    // --- dòng BMI nhỏ ---
+    // Đã có chiều cao → hiện BMI. Chưa có → hiện lời mời nhập chiều cao.
+    // (Người dùng cũ có thể đã bấm "Bỏ qua" thiết lập từ trước, nên thẻ thiết
+    //  lập sẽ không tự hiện lại nữa — nếu không có dòng này thì họ sẽ không
+    //  bao giờ thấy BMI.)
+    var bmiLine = null;
+    if (weightConfigured() && heightConfigured()) {
+      var hBmi = bmiOf(currentWeight(), currentHeight());
+      if (hBmi > 0) {
+        var hCat = bmiCat(hBmi);
+        bmiLine = el('div', {
+          style: {
+            display: 'flex', alignItems: 'center', gap: '8px',
+            margin: '-4px 2px 14px', cursor: 'pointer', fontSize: '13.5px'
+          },
+          onclick: function () { window.App.go('#report'); }
+        },
+          el('span', {
+            style: {
+              flex: '0 0 8px', width: '8px', height: '8px',
+              borderRadius: '50%', background: hCat.color
+            }
+          }),
+          el('span', { class: 'text-dim' }, 'BMI ' + dec1Vi(hBmi) + ' · ' + hCat.label),
+          el('span', { class: 'text-dim', style: { marginLeft: 'auto' } }, 'Xem chi tiết ›')
+        );
+      }
+    } else if (!setupCard && !heightConfigured()) {
+      // thẻ thiết lập không hiện (đã bấm "Bỏ qua") → mời nhập bằng một dòng nhỏ
+      bmiLine = el('div', {
+        style: {
+          display: 'flex', alignItems: 'center', gap: '8px',
+          margin: '-4px 2px 14px', cursor: 'pointer', fontSize: '13.5px'
+        },
+        onclick: function () {
+          setupForced = true;
+          home();
+          try { window.scrollTo(0, 0); } catch (e) {}
+        }
+      },
+        el('span', {
+          style: {
+            flex: '0 0 8px', width: '8px', height: '8px',
+            borderRadius: '50%', background: GOLD
+          }
+        }),
+        el('span', { class: 'text-dim' }, 'Nhập chiều cao để xem chỉ số cơ thể'),
+        el('span', { class: 'text-dim', style: { marginLeft: 'auto' } }, 'Nhập ›')
+      );
+    }
 
     // --- (b) thẻ chu kỳ ---
     var cycleCard = buildCycleCard(tIso);
@@ -579,6 +1109,7 @@
       reportBanner,
       setupCard,
       strip,
+      bmiLine,
       cycleCard,
       todayCard,
       nextClosedLine,
@@ -597,6 +1128,7 @@
   function buildSetupCard() {
     var cfg = currentCycle();
     var wc = weightControl(currentWeight());
+    var hc = heightControl(currentHeight());
     var dateInput = el('input', {
       type: 'date',
       value: cfg.lastStartIso || '',
@@ -617,6 +1149,11 @@
       el('div', { class: 'text-dim', style: { fontSize: '13px', marginTop: '8px', textAlign: 'center' } },
         'Dùng để ước tính lượng calo đã đốt.'),
 
+      el('div', { style: { fontWeight: '800', fontSize: '15.5px', margin: '18px 0 8px' } }, 'Chiều cao (cm)'),
+      hc.node,
+      el('div', { class: 'text-dim', style: { fontSize: '13px', marginTop: '8px', textAlign: 'center' } },
+        'Dùng để tính chỉ số cơ thể (BMI).'),
+
       el('div', { style: { fontWeight: '800', fontSize: '15.5px', margin: '18px 0 8px' } },
         'Ngày bắt đầu kỳ kinh gần nhất'),
       dateInput,
@@ -626,6 +1163,7 @@
       el('div', { class: 'mt-16' },
         window.UI.primaryBtn('Lưu', function () {
           saveWeight(wc.get());
+          saveHeight(hc.get());
           var iso = String(dateInput.value || '').substring(0, 10);
           var c = currentCycle();
           saveCycle({
@@ -1907,18 +2445,10 @@
       topCard = window.UI.card('5 bài tập nhiều nhất', null, topBox);
     }
 
-    // --- thẻ cân nặng ---
-    var wc = weightControl(weight);
-    var weightCard = window.UI.card('Cân nặng của em', null,
-      el('div', { class: 'text-dim', style: { fontSize: '13.5px', marginTop: '-4px', marginBottom: '10px' } },
-        'Dùng để ước tính calo. Chỉ lưu trên máy của em.'),
-      wc.node,
-      el('div', { class: 'mt-16' },
-        window.UI.primaryBtn('Lưu cân nặng', function () {
-          saveWeight(wc.get());
-          monthlyReport(y, m);
-        }))
-    );
+    // --- thẻ chỉ số cơ thể (BMI + cân nặng + chiều cao + biểu đồ thay đổi) ---
+    var bodyCard = buildBodyCard(function () {
+      rerender(function () { monthlyReport(y, m); });
+    });
 
     show(screen(
       window.UI.topbar('Tổng kết ' + MONTH_VI[m].toLowerCase(), 'Năm ' + y, back),
@@ -1928,7 +2458,7 @@
       chartCard,
       prevCard,
       topCard,
-      weightCard,
+      bodyCard,
       window.UI.secondaryBtn('Về trang chủ', goHome)
     ));
   }

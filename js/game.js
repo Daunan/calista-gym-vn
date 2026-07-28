@@ -13,11 +13,19 @@
   var SESSIONS_KEY = 'gymvn_sessions';
   var MAX_SESSIONS = 300;
 
-  var SCHEMA_VERSION = 2;
+  var SCHEMA_VERSION = 3;
 
   // Cân nặng mặc định của ứng dụng này (người dùng có thể đổi trong phần cài đặt).
   // RULES.DEFAULT_WEIGHT_KG chỉ là chỗ giữ trung tính nên chỉ dùng khi rules.js chưa tải.
   var DEFAULT_WEIGHT_KG = 48;
+
+  // Chiều cao mặc định (cm) — đổi được trong phần cài đặt.
+  var DEFAULT_HEIGHT_CM = 160;
+  var MIN_HEIGHT_CM = 100;
+  var MAX_HEIGHT_CM = 250;
+
+  // Nhật ký cân nặng: { date: 'YYYY-MM-DD', kg: number }, cũ → mới.
+  var MAX_WEIGHT_HISTORY = 400;
 
   // ---------- tiện ích ----------
 
@@ -29,6 +37,39 @@
 
   function defaultWeightKg() {
     return DEFAULT_WEIGHT_KG;
+  }
+
+  function defaultHeightCm() {
+    var r = R();
+    var h = r ? numOr(r.DEFAULT_HEIGHT_CM, DEFAULT_HEIGHT_CM) : DEFAULT_HEIGHT_CM;
+    return (h >= MIN_HEIGHT_CM && h <= MAX_HEIGHT_CM) ? h : DEFAULT_HEIGHT_CM;
+  }
+
+  function isIsoDate(v) {
+    return typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v);
+  }
+
+  // Dọn nhật ký cân nặng: bỏ mục hỏng, gộp trùng ngày (mục sau thắng),
+  // sắp xếp cũ → mới, giữ tối đa MAX_WEIGHT_HISTORY mục gần nhất.
+  function normalizeWeightHistory(list) {
+    var out = [];
+    if (!Array.isArray(list)) return out;
+    var byDate = {};
+    for (var i = 0; i < list.length; i++) {
+      var e = list[i];
+      if (!e || typeof e !== 'object') continue;
+      var d = typeof e.date === 'string' ? e.date.substring(0, 10) : '';
+      if (!isIsoDate(d)) continue;
+      var kg = numOr(parseFloat(e.kg), 0);
+      if (!(kg > 0 && kg <= 400)) continue;
+      byDate[d] = Math.round(kg * 10) / 10;
+    }
+    var dates = [];
+    for (var k in byDate) { if (Object.prototype.hasOwnProperty.call(byDate, k)) dates.push(k); }
+    dates.sort();
+    if (dates.length > MAX_WEIGHT_HISTORY) dates = dates.slice(dates.length - MAX_WEIGHT_HISTORY);
+    for (var j = 0; j < dates.length; j++) out.push({ date: dates[j], kg: byDate[dates[j]] });
+    return out;
   }
 
   function defaultCycle() {
@@ -73,7 +114,7 @@
           s.attendance = out;
         }
       }
-      var keys = ['xp', 'bestStreak', 'totalSessions', 'weightKg', 'schemaVersion'];
+      var keys = ['xp', 'bestStreak', 'totalSessions', 'weightKg', 'heightCm', 'schemaVersion'];
       for (var k = 0; k < keys.length; k++) {
         var m = raw.match(new RegExp('"' + keys[k] + '"\\s*:\\s*(-?\\d+(?:\\.\\d+)?)'));
         if (m) s[keys[k]] = parseFloat(m[1]);
@@ -82,6 +123,20 @@
       if (wm) s.weekMode = wm[1];
       var ws = raw.match(/"weightSet"\s*:\s*(true|false)/);
       if (ws) s.weightSet = (ws[1] === 'true');
+      // heightSet phải được cứu riêng, nếu không thẻ "thiết lập chiều cao"
+      // sẽ hiện lại dù người dùng đã nhập rồi.
+      var hs = raw.match(/"heightSet"\s*:\s*(true|false)/);
+      if (hs) s.heightSet = (hs[1] === 'true');
+      // nhật ký cân nặng: nhặt từng cặp {date, kg} còn đọc được
+      var hist = raw.match(/"date"\s*:\s*"\d{4}-\d{2}-\d{2}"\s*,\s*"kg"\s*:\s*-?\d+(?:\.\d+)?/g);
+      if (hist && hist.length) {
+        var rec = [];
+        for (var h = 0; h < hist.length; h++) {
+          var pm = hist[h].match(/"(\d{4}-\d{2}-\d{2})"\s*,\s*"kg"\s*:\s*(-?\d+(?:\.\d+)?)/);
+          if (pm) rec.push({ date: pm[1], kg: parseFloat(pm[2]) });
+        }
+        if (rec.length) s.weightHistory = rec;
+      }
       var rs = raw.match(/"reportShown"\s*:\s*"([0-9\-]*)"/);
       if (rs) s.reportShown = rs[1];
       var ls = raw.match(/"lastStartIso"\s*:\s*"(\d{4}-\d{2}-\d{2})"/);
@@ -116,6 +171,23 @@
       s.weightSet = (typeof s.weightKg === 'number' && isFinite(s.weightKg) && s.weightKg > 0);
     }
     if (typeof s.weightKg !== 'number' || !isFinite(s.weightKg) || s.weightKg <= 0) s.weightKg = defaultWeightKg();
+
+    // --- trường mới (schema 3): chiều cao + nhật ký cân nặng ---
+    // heightSet cũng vậy: PHẢI xác định từ dữ liệu gốc TRƯỚC khi điền 160cm,
+    // nếu không lần lưu đầu tiên sẽ khiến app tưởng người dùng đã tự nhập.
+    if (typeof s.heightSet !== 'boolean') {
+      s.heightSet = (typeof s.heightCm === 'number' && isFinite(s.heightCm) && s.heightCm > 0);
+    }
+    if (typeof s.heightCm !== 'number' || !isFinite(s.heightCm) ||
+        s.heightCm < MIN_HEIGHT_CM || s.heightCm > MAX_HEIGHT_CM) {
+      s.heightCm = defaultHeightCm();
+    }
+    s.weightHistory = normalizeWeightHistory(s.weightHistory);
+    // Dữ liệu cũ chưa có nhật ký nhưng đã có cân nặng thật → tạo 1 mục mở đầu.
+    if (!s.weightHistory.length && s.weightSet === true && s.weightKg > 0) {
+      s.weightHistory = [{ date: todayIso(), kg: Math.round(s.weightKg * 10) / 10 }];
+    }
+
     var dc = defaultCycle();
     if (!s.cycle || typeof s.cycle !== 'object') s.cycle = dc;
     else {
@@ -479,6 +551,18 @@
     if (!(w >= 25 && w <= 250)) w = defaultWeightKg();
     s.weightKg = Math.round(w * 10) / 10;
     s.weightSet = true;
+    // ghi vào nhật ký: cùng ngày thì ghi đè, tối đa MAX_WEIGHT_HISTORY mục.
+    try {
+      var hist = normalizeWeightHistory(s.weightHistory);
+      var today = todayIso();
+      var found = false;
+      for (var i = 0; i < hist.length; i++) {
+        if (hist[i].date === today) { hist[i].kg = s.weightKg; found = true; break; }
+      }
+      if (!found) hist.push({ date: today, kg: s.weightKg });
+      if (hist.length > MAX_WEIGHT_HISTORY) hist = hist.slice(hist.length - MAX_WEIGHT_HISTORY);
+      s.weightHistory = hist;
+    } catch (e) {}
     saveState(s);
     return s.weightKg;
   }
@@ -486,6 +570,42 @@
   // Người dùng đã tự nhập cân nặng chưa? (dùng để quyết định hiện thẻ thiết lập)
   function isWeightSet() {
     return loadState().weightSet === true;
+  }
+
+  // Nhật ký cân nặng, cũ → mới. Luôn trả về mảng (có thể rỗng).
+  function weightHistory() {
+    try {
+      var hist = normalizeWeightHistory(loadState().weightHistory);
+      var out = [];
+      for (var i = 0; i < hist.length; i++) out.push({ date: hist[i].date, kg: hist[i].kg });
+      return out;
+    } catch (e) { return []; }
+  }
+
+  // ---------- chiều cao (cm) ----------
+
+  function getHeight() {
+    try {
+      var h = numOr(loadState().heightCm, 0);
+      return (h >= MIN_HEIGHT_CM && h <= MAX_HEIGHT_CM) ? h : defaultHeightCm();
+    } catch (e) { return defaultHeightCm(); }
+  }
+
+  function setHeight(cm) {
+    var s = loadState();
+    var h = numOr(parseFloat(cm), 0);
+    if (!(h > 0)) h = defaultHeightCm();
+    if (h < MIN_HEIGHT_CM) h = MIN_HEIGHT_CM;
+    if (h > MAX_HEIGHT_CM) h = MAX_HEIGHT_CM;
+    s.heightCm = Math.round(h * 10) / 10;
+    s.heightSet = true;
+    saveState(s);
+    return s.heightCm;
+  }
+
+  // Người dùng đã tự nhập chiều cao chưa?
+  function isHeightSet() {
+    try { return loadState().heightSet === true; } catch (e) { return false; }
   }
 
   function getCycle() {
@@ -650,6 +770,10 @@
     getWeight: getWeight,
     setWeight: setWeight,
     isWeightSet: isWeightSet,
+    weightHistory: weightHistory,
+    getHeight: getHeight,
+    setHeight: setHeight,
+    isHeightSet: isHeightSet,
     getCycle: getCycle,
     setCycle: setCycle,
     markReportShown: markReportShown,
